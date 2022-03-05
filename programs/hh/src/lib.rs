@@ -197,15 +197,16 @@ pub struct JobFinisher<'info> {
 }
 
 
+/// JobAd encodes the state related to a job ad that can be staked.
 #[account]
 pub struct JobAd {
-    // when is this job being closed
+    // when is this job being closed - no reward can be claimed before this time
     pub end_date: UnixTimestamp,
     // defines who's the application to be rewarded
     pub job_state: JobState,
     // total reward pool
     pub reward_pool: u64,
-    // authority of the job ad
+    // authority of the job ad - which defines who can update this account
     pub authority: Pubkey,
 }
 /// Keeps track of how much can be staked, and how much has there been staked
@@ -217,6 +218,7 @@ pub struct ApplicationStakingPool {
     pub actual_amount: u64,
 }
 
+/// UserApplicationStake encodes the user's stake on an application id
 #[account]
 pub struct UserApplicationStake {
     pub amount_staked: u64,
@@ -230,10 +232,6 @@ pub enum JobState {
     Hired(String),
     Cancelled,
 }
-
-// impl AnchorDeserialize for JobState {
-//     fn
-// }
 
 impl JobState {
     fn is_completed(&self) -> bool {
