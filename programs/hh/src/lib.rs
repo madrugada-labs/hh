@@ -53,8 +53,22 @@ pub mod hh {
         Ok(())
     }
 
-    pub fn redeem(_ctx: Context<ApplicationStakeRedemption>, _application_id: String) -> Result<()> {
-        // ctx.accounts.
+    pub fn redeem(ctx: Context<ApplicationStakeRedemption>, _application_id: String) -> Result<()> {
+        let _job_state = &ctx.accounts.job_ad_account.job_state;
+        let amount_to_redeem = 0; // TODO: calculcate this based on the amount of vouchers
+
+        let cpi_accounts = Transfer{
+            from: ctx.accounts.staker_authority_account.to_account_info(),
+            to: ctx.accounts.signer.to_account_info(),
+            authority: ctx.accounts.signer.to_account_info(),
+        };
+        
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount_to_redeem)?;
+
+        // Avoid having redemptions that exceed the reward
+        ctx.accounts.user_stats.reward_vouchers = 0;
         Ok(())
     }
 
@@ -140,7 +154,19 @@ pub struct ApplicationStakeRedemption<'info> {
     )]
     pub user_staking_account: Account<'info, TokenAccount>,
 
+    #[account(constraint = spl_token_mint.key() == staker_authority_account.mint)]
+    pub spl_token_mint: Account<'info, Mint>,
+
+
+    #[account(mut,
+        constraint = staker_authority_account.owner == signer.key(),
+        constraint = staker_authority_account.mint == spl_token_mint.key())]
+    pub staker_authority_account: Account<'info, TokenAccount>,
+
+
     #[account(
+        constraint = user_stats.reward_vouchers > 0,
+        mut,
         seeds = [signer.key().as_ref(), application_id.as_bytes(), STAKING_STATS_SEED],
         bump = user_application_stake_bump,
     )]
@@ -148,6 +174,7 @@ pub struct ApplicationStakeRedemption<'info> {
 
     #[account(mut)]
     signer: Signer<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
