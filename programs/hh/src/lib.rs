@@ -53,12 +53,15 @@ pub mod hh {
         Ok(())
     }
 
-    pub fn redeem(ctx: Context<ApplicationStakeRedemption>, application_id: String) -> Result<()> {
+    pub fn redeem(_ctx: Context<ApplicationStakeRedemption>, _application_id: String) -> Result<()> {
         // ctx.accounts.
         Ok(())
     }
 
-    // close application staking pool... 
+    pub fn close_job(ctx: Context<JobFinisher>, job_state: JobState) -> Result<()> {
+        ctx.accounts.job_ad_account.job_state = job_state;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -124,7 +127,7 @@ pub struct ApplicationStakeRedemption<'info> {
 
     #[account(
         constraint = Clock::get()?.unix_timestamp <= job_ad_account.end_date,
-        constraint = job_ad_account.hired_application.is_completed(), // there has to be a hired applicant
+        constraint = job_ad_account.job_state.is_completed(),
         seeds = [job_ad.as_bytes()],
         bump = job_ad_account_bump
     )]
@@ -147,12 +150,32 @@ pub struct ApplicationStakeRedemption<'info> {
     signer: Signer<'info>,
 }
 
+#[derive(Accounts)]
+#[instruction(bump: u8, job_ad: String)]
+pub struct JobFinisher<'info> {
+    #[account(
+        // Note: this enforces that once the status has been set to completed
+        // it cannot be modified again. It is important, since the type of status
+        // will define how much stakers can withdraw. Hence, updating this once it has
+        // already been set can yield a state where there are not enough funds to pay
+        // stakers.
+        constraint = !job_ad_account.job_state.is_completed(),
+        mut, 
+        seeds = [job_ad.as_bytes()], bump = bump
+    )]
+    pub job_ad_account: Account<'info, JobAd>,
+
+    #[account(mut)]
+    signer: Signer<'info>,
+}
+
+
 #[account]
 pub struct JobAd {
     // when is this job being closed
     pub end_date: UnixTimestamp,
     // defines who's the application to be rewarded
-    pub hired_application: JobState,
+    pub job_state: JobState,
     // total reward pool
     pub reward_pool: u64,
     // authority of the job ad
