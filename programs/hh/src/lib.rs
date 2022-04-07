@@ -260,7 +260,7 @@ impl AnchorDeserialize for JobState {
         match v {
             b"0" => Ok(JobState::Hiring),
             b"2" => Ok(JobState::Cancelled),
-            hired if hired.len() > 0 && hired[0] == b'1' => Ok(JobState::Hired(String::from_utf8_lossy(&hired[1..]).to_string())),
+            hired if hired.get(0) == Some(&b'1') => Ok(JobState::Hired(String::from_utf8_lossy(&hired[1..]).to_string())),
             _ => Err(io::Error::new(io::ErrorKind::Other, "variant not recognized")),
         }
     }
